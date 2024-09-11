@@ -71,12 +71,12 @@ def send_email(sonde_id, typ, date_time, latitude, longitude, course, speed, alt
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(sender_email, app_password)
             server.sendmail(sender_email, receiver_email, msg.as_string())
-        print(f"Email je poslan za sondu {sonde_id}********************************************************")
+        print(f"Email je poslan za sondu {sonde_id}*********************************************")
         # Zabilježi ID sonde kojoj je poslan email
         with open(sent_sondes_file, 'a') as file:
             file.write(sonde_id + '\n')
     except Exception as e:
-        print(f"Došlo je do greške prilikom slanja emaila: {e} ?????????????????????????????????????????????")
+        print(f"Došlo je do greške prilikom slanja emaila: {e} ?????????????????????????????????")
 
 # Funkcija za provjeru da li je email već poslan za određenu sondu
 def email_sent(sonde_id):
