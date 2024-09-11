@@ -1,3 +1,13 @@
+#-------------------------------------------------------------------------------
+# Name:        Sonde handler
+# Purpose:
+#
+# Author:      9A4AM
+#
+# Created:     12.09.2024
+# Copyright:   (c) 9A4AM 2024
+# Licence:     <your licence>
+#-------------------------------------------------------------------------------
 import pandas as pd
 import requests
 from math import radians, sin, cos, sqrt, atan2
@@ -38,8 +48,8 @@ def haversine(lat1, lon1, lat2, lon2):
 
 # Funkcija za slanje emaila
 def send_email(sonde_id, typ, date_time, latitude, longitude, course, speed, altitude, climb, launch, frequency, distance):
-    subject = f"Sonde {sonde_id} je blizu vas"
-    body = (f"Sonde ID: {sonde_id}\n"
+    subject = f"Sonda {sonde_id} je u krugu od {distance:.2f} km od vaše Home pozicije"
+    body = (f"Sonda ID: {sonde_id}\n"
             f"Tip: {typ}\n"
             f"Datum i vrijeme: {date_time}\n"
             f"Latitude: {latitude}\n"
@@ -61,12 +71,12 @@ def send_email(sonde_id, typ, date_time, latitude, longitude, course, speed, alt
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(sender_email, app_password)
             server.sendmail(sender_email, receiver_email, msg.as_string())
-        print(f"Email je poslan za sondu {sonde_id}")
-        # Zabilježi ID sonde kojoj je poslat email
+        print(f"Email je poslan za sondu {sonde_id}********************************************************")
+        # Zabilježi ID sonde kojoj je poslan email
         with open(sent_sondes_file, 'a') as file:
             file.write(sonde_id + '\n')
     except Exception as e:
-        print(f"Došlo je do greške prilikom slanja emaila: {e}")
+        print(f"Došlo je do greške prilikom slanja emaila: {e} ?????????????????????????????????????????????")
 
 # Funkcija za provjeru da li je email već poslan za određenu sondu
 def email_sent(sonde_id):
