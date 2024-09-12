@@ -30,7 +30,7 @@ home_longitude = float(config.get('settings', 'home_longitude'))
 distance_from_home = float(config.get('settings', 'distance_from_home'))
 interval = int(config.get('settings', 'interval'))
 
-# Path to file for data if sent email for sonde before
+# Path to file of data if sent email for sonde before
 sent_sondes_file = 'sent_sondes.txt'
 
 # Haversine function for calculate betwen two position
@@ -71,14 +71,14 @@ def send_email(sonde_id, typ, date_time, latitude, longitude, course, speed, alt
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(sender_email, app_password)
             server.sendmail(sender_email, receiver_email, msg.as_string())
-        print(f"E-mail sendt for {sonde_id}*********************************************")
+        print(f"E-mail sent for {sonde_id}*********************************************")
         # Save ID sonde if e-mail was sendt
         with open(sent_sondes_file, 'a') as file:
             file.write(sonde_id + '\n')
     except Exception as e:
         print(f"Error during send e-maila: {e} ?????????????????????????????????")
 
-# Function if e-mail was sendt for current sonde
+# Function if e-mail was sent for current sonde
 def email_sent(sonde_id):
     try:
         with open(sent_sondes_file, 'r') as file:
@@ -99,10 +99,10 @@ def process_data():
     if response.status_code == 200:
         data = pd.read_html(response.content)[0].values.tolist()
     else:
-        print(f"Greška {response.status_code}: Error loadin web Radiosondy.info")
+        print(f"Error {response.status_code}: Error loading web Radiosondy.info")
         return
 
-    # Ekstract data for each sonde and calculate distance from Home position
+    # Ekstract data for each one sonde and calculate distance from Home position
     for row in data:
         sonde_id = row[0]
         typ = row[1]
@@ -118,7 +118,7 @@ def process_data():
 
         # Calculate distance
         distance = haversine(home_latitude, home_longitude, latitude, longitude)
-        print(f"Distacne {sonde_id} from Home location: {distance:.2f} km")
+        print(f"Distace {sonde_id} from Home location: {distance:.2f} km")
 
         # If distance is lower then set and not send e-mail before, sent e-mail now
         if distance < distance_from_home and not email_sent(sonde_id):
@@ -128,7 +128,7 @@ def process_data():
 try:
     while True:
         process_data()
-        print(f"Waiting {interval} second before reload data... CTRL + C for EXIT!")
+        print(f"Waiting {interval} second before reload data from Radiosondy.info... CTRL + C for EXIT!")
         time.sleep(interval)
 except KeyboardInterrupt:
     print("Program is treminated!!.")
