@@ -16,6 +16,8 @@ from email.mime.text import MIMEText
 import time
 import configparser
 import sys
+from datetime import datetime
+
 
 # Load config.ini
 config = configparser.ConfigParser()
@@ -117,6 +119,7 @@ def process_data():
         frequency = row[10]
 
         # Calculate distance
+
         distance = haversine(home_latitude, home_longitude, latitude, longitude)
         print(f"Distance {sonde_id} from Home location: {distance:.2f} km")
 
@@ -127,8 +130,15 @@ def process_data():
 # Set interval for reload Radiosondy.info in seconds
 try:
     while True:
+        # get time now
+        dt = datetime.now()
+        # format it to a string
+        timeStamp = dt.strftime('%Y-%m-%d %H:%M:%S')
+
+        # print it to screen
+        # print(timeStamp)
         process_data()
-        print(f"Waiting {interval} second before reload data from Radiosondy.info... CTRL + C for EXIT!")
+        print(f"{timeStamp} -- Waiting {interval} second before reload data from Radiosondy.info... CTRL + C for EXIT!")
         time.sleep(interval)
 except KeyboardInterrupt:
     print("Program is treminated!!.")

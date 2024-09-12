@@ -16,6 +16,7 @@ from email.mime.text import MIMEText
 import time
 import configparser
 import sys
+from datetime import datetime
 
 # Učitavanje konfiguracije iz config.ini
 config = configparser.ConfigParser()
@@ -127,8 +128,15 @@ def process_data():
 # Postavi interval za učitavanje stranice Radiosondy.info u sekundama
 try:
     while True:
+        # Učitaj vrijeme sada
+        dt = datetime.now()
+        # formiraj string
+        timeStamp = dt.strftime('%Y-%m-%d %H:%M:%S')
+
+        # Ispiši na zaslon
+        # print(timeStamp)
         process_data()
-        print(f"Čekam {interval} sekundi prije ponovnog učitavanja... CTRL + C za izlaz!")
+        print(f"{timeStamp} -- Čekam {interval} sekundi prije ponovnog učitavanja... CTRL + C za izlaz!")
         time.sleep(interval)
 except KeyboardInterrupt:
     print("Program je prekinut.")
