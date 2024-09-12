@@ -17,7 +17,7 @@ import time
 import configparser
 import sys
 
-# Load data config.ini
+# Load config.ini
 config = configparser.ConfigParser()
 config.read('config.ini')
 
