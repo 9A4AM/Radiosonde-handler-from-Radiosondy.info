@@ -118,7 +118,7 @@ def process_data():
 
         # Calculate distance
         distance = haversine(home_latitude, home_longitude, latitude, longitude)
-        print(f"Distace {sonde_id} from Home location: {distance:.2f} km")
+        print(f"Distance {sonde_id} from Home location: {distance:.2f} km")
 
         # If distance is lower then set and not send e-mail before, sent e-mail now
         if distance < distance_from_home and not email_sent(sonde_id):
