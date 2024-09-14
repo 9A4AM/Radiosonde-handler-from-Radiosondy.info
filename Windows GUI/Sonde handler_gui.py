@@ -23,6 +23,7 @@ from tkinter import font
 
 # GUI Setup
 root = tk.Tk()
+root.geometry("960x680")
 root.title("Sonde Handler from Radiosondy.info by 9A4AM")
 root.configure(bg='black')  # Set background color to black
 
@@ -84,6 +85,7 @@ home_latitude = float(config.get('settings', 'home_latitude'))
 home_longitude = float(config.get('settings', 'home_longitude'))
 distance_from_home = float(config.get('settings', 'distance_from_home'))
 interval = int(config.get('settings', 'interval'))
+sonde_view_distance = float(config.get('settings', 'sonde_view_distance'))
 
 # Display config.ini data
 config_data = (
@@ -93,6 +95,7 @@ config_data = (
     f"Home Longitude: {home_longitude}\n"
     f"Distance from Home: {distance_from_home} km\n"
     f"Interval: {interval} s\n"
+    f"Sonde View Distance: {sonde_view_distance} km\n"
 )
 
 config_display.insert(tk.END, config_data)
@@ -107,7 +110,7 @@ def haversine(lat1, lon1, lat2, lon2):
     R = 6371.0  # radius of the earth in km
 
     dlat = radians(lat2 - lat1)
-    dlon = radians(lat2 - lon1)
+    dlon = radians(lon2 - lon1)
 
     a = sin(dlat / 2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon / 2)**2
     c = 2 * atan2(sqrt(a), sqrt(1 - a))
@@ -193,11 +196,13 @@ def process_data():
         distance = haversine(home_latitude, home_longitude, latitude, longitude)
         print(f"Sonde   {sonde_id : <12} distance from Home location: {distance:.2f} km")
 
-        # Insert data into Treeview
-        tree_sondes.insert("", "end", values=(sonde_id, typ, date_time, latitude, longitude, course, speed, altitude, climb, launch, frequency, f"{distance:.2f} km"))
+        # Check if the sonde should be displayed
+        if distance < sonde_view_distance:
+            # Insert data into Treeview
+            tree_sondes.insert("", "end", values=(sonde_id, typ, date_time, latitude, longitude, course, speed, altitude, climb, launch, frequency, f"{distance:.2f} km"))
 
-        if distance < distance_from_home and not email_sent(sonde_id):
-            send_email(sonde_id, typ, date_time, latitude, longitude, course, speed, altitude, climb, launch, frequency, distance)
+            if distance < distance_from_home and not email_sent(sonde_id):
+                send_email(sonde_id, typ, date_time, latitude, longitude, course, speed, altitude, climb, launch, frequency, distance)
 
     adjust_column_widths(tree_sondes)
 
@@ -219,6 +224,8 @@ def process_data():
 def start_processing():
     process_data()
     root.after(interval * 1000, start_processing)
+
+
 
 # Exit button
 exit_button = tk.Button(root, text="Exit", command=root.quit, bg='red', fg='white', font=("Arial", 12))
