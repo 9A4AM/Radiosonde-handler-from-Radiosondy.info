@@ -29,7 +29,11 @@ root.configure(bg='black')  # Set background color to black
 
 # Define frames
 frame1 = tk.Frame(root, bg='black')  # Frame for active sonde display
+# Allow column 0 (for frame1) to expand horizontally
+root.columnconfigure(0, weight=1)  # Make column 0 expandable
 frame1.grid(row=0, column=0, columnspan=2, padx=10, pady=10, sticky="ew")  # Make it span across two columns
+# Allow frame1 to stretch in the X direction
+frame1.columnconfigure(0, weight=1)  # Make frame1 expandable within its column
 
 frame2 = tk.Frame(root, bg='black')  # Frame for sent sondes
 frame2.grid(row=1, column=0, padx=10, pady=10)
@@ -228,7 +232,7 @@ def start_processing():
 
 
 # Exit button
-exit_button = tk.Button(root, text="Exit", command=root.quit, bg='red', fg='white', font=("Arial", 12))
+exit_button = tk.Button(root, text="Exit", command=root.quit, bg='red', fg='white', font=("Arial", 26))
 exit_button.grid(row=3, column=0, columnspan=2, pady=10)  # Center the button below other frames
 
 # Run the data processing initially and then start the GUI loop
