@@ -22,6 +22,7 @@ from tkinter import ttk
 from tkinter import font
 
 # GUI Setup
+# GUI Setup
 root = tk.Tk()
 root.geometry("960x680")
 root.title("Sonde Handler from Radiosondy.info by 9A4AM")
@@ -29,17 +30,25 @@ root.configure(bg='black')  # Set background color to black
 
 # Define frames
 frame1 = tk.Frame(root, bg='black')  # Frame for active sonde display
-# Allow column 0 (for frame1) to expand horizontally
-root.columnconfigure(0, weight=1)  # Make column 0 expandable
-frame1.grid(row=0, column=0, columnspan=2, padx=10, pady=10, sticky="ew")  # Make it span across two columns
-# Allow frame1 to stretch in the X direction
-frame1.columnconfigure(0, weight=1)  # Make frame1 expandable within its column
+frame1.grid(row=0, column=0, columnspan=2, padx=10, pady=10, sticky="nsew")  # sticky="nsew" to allow expansion
+
+# Allow the first row and columns to expand
+root.grid_rowconfigure(0, weight=1)  # This makes the first row (frame1) expandable
+root.grid_columnconfigure(0, weight=1)  # This makes the first column expandable
+root.grid_columnconfigure(1, weight=1)  # This makes the second column expandable
+
+frame1.grid_rowconfigure(0, weight=1)  # Make the content inside frame1 expandable
+frame1.grid_columnconfigure(0, weight=1)  # Allow column in frame1 to expand
 
 frame2 = tk.Frame(root, bg='black')  # Frame for sent sondes
-frame2.grid(row=1, column=0, padx=10, pady=10)
+frame2.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")  # Allow expansion with sticky="nsew"
 
 frame3 = tk.Frame(root, bg='black')  # Frame for config display
-frame3.grid(row=1, column=1, padx=10, pady=10)
+frame3.grid(row=1, column=1, padx=10, pady=10, sticky="nsew")  # Allow expansion with sticky="nsew"
+
+# Allow the second row to be flexible in size
+root.grid_rowconfigure(1, weight=1)  # Allow row 1 (containing frame2 and frame3) to expand
+
 
 # Display active sondes
 tk.Label(frame1, text="LIVE Sonde", font=("Arial", 14), fg='white', bg='black').pack()
@@ -108,7 +117,6 @@ config_display.configure(state='disabled')  # Prevent editing of config display
 # Path to file of data if sent email for sonde before
 sent_sondes_file = 'sent_sondes.txt'
 
-
 # Haversine function for calculate between two positions
 def haversine(lat1, lon1, lat2, lon2):
     R = 6371.0  # radius of the earth in km
@@ -166,6 +174,10 @@ def email_sent(sonde_id):
 last_update_label = tk.Label(root, text="Last update: N/A", font=("Arial", 12), fg='white', bg='black')
 last_update_label.grid(row=2, column=0, columnspan=2)
 
+# Label to display the status of data fetching
+status_label = tk.Label(root, text="Status: Waiting for the first data fetch...", font=("Arial", 12), fg='yellow', bg='black')
+status_label.grid(row=3, column=0, columnspan=2)
+
 # Function to load data from Radiosondy.info and send email
 def process_data():
     url = r'https://radiosondy.info/dyn/get_flying.php'
@@ -173,13 +185,27 @@ def process_data():
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
 
-    response = requests.get(url, headers=headers)
+    status_label.config(text="Status: Fetching data from Radiosondy.info...", fg='yellow')  # Update status to fetching
 
-    if response.status_code == 200:
-        data = pd.read_html(response.content)[0].values.tolist()
-    else:
-        print(f"Error {response.status_code}: Error loading Radiosondy.info")
-        return
+    while True:
+        try:
+            # Pokušaj pristupa stranici
+            response = requests.get(url, headers=headers)
+
+            # Provjeri je li zahtjev uspješan
+            if response.status_code == 200:
+                data = pd.read_html(response.content)[0].values.tolist()
+                print("Data successfully loaded from Radiosondy.info")
+                status_label.config(text="Status: Data fetched successfully!", fg='green')  # Update status to success
+                break  # Prekini petlju ako je stranica uspješno dohvaćena
+            else:
+                print(f"Error {response.status_code}: Error loading Radiosondy.info")
+                raise requests.RequestException  # Namjerno izazivanje greške za retry
+
+        except requests.RequestException as e:
+            print(f"Error loading Radiosondy.info: {e}. Retrying in 30 seconds...")
+            status_label.config(text=f"Status: Error fetching data. Retrying in 30 seconds...", fg='red')  # Update status to error
+            time.sleep(30)  # Čekaj 30 sekundi prije ponovnog pokušaja
 
     tree_sondes.delete(*tree_sondes.get_children())  # Clear the treeview before inserting new data
 
@@ -224,16 +250,14 @@ def process_data():
     dt = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     last_update_label.config(text=f"Last update: {dt}")
 
+# Exit button
+exit_button = tk.Button(root, text="Exit", command=root.quit, bg='red', fg='white', font=("Arial", 26))
+exit_button.grid(row=5, column=0, columnspan=2, pady=10)  # Center the button below other frames
+
 # Function to handle periodic updates
 def start_processing():
     process_data()
     root.after(interval * 1000, start_processing)
-
-
-
-# Exit button
-exit_button = tk.Button(root, text="Exit", command=root.quit, bg='red', fg='white', font=("Arial", 26))
-exit_button.grid(row=3, column=0, columnspan=2, pady=10)  # Center the button below other frames
 
 # Run the data processing initially and then start the GUI loop
 start_processing()
