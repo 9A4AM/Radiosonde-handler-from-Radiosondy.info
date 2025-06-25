@@ -1,15 +1,6 @@
-#-------------------------------------------------------------------------------
-# Name:        Sonde handler for Windows - GUI version
-# Purpose:
-#
-# Author:      9A4AM
-#
-# Created:     13.09.2024
-# Copyright:   (c) 9A4AM 2024
-# Licence:     <your licence>
-#-------------------------------------------------------------------------------
-import pandas as pd
+# Sonde handler for Windows - GUI version (bez pandas)
 import requests
+from bs4 import BeautifulSoup
 from math import radians, sin, cos, sqrt, atan2
 import smtplib
 from email.mime.text import MIMEText
@@ -20,49 +11,41 @@ from datetime import datetime
 import tkinter as tk
 from tkinter import ttk
 from tkinter import font
+import socket
+import json
 
-# GUI Setup
 # GUI Setup
 root = tk.Tk()
-root.geometry("960x680")
+root.geometry("1024x720")
 root.title("Sonde Handler from Radiosondy.info by 9A4AM")
-root.configure(bg='black')  # Set background color to black
+root.configure(bg='black')
 
-# Define frames
-frame1 = tk.Frame(root, bg='black')  # Frame for active sonde display
-frame1.grid(row=0, column=0, columnspan=2, padx=10, pady=10, sticky="nsew")  # sticky="nsew" to allow expansion
+frame1 = tk.Frame(root, bg='black')
+frame1.grid(row=0, column=0, columnspan=2, padx=10, pady=10, sticky="nsew")
 
-# Allow the first row and columns to expand
-root.grid_rowconfigure(0, weight=1)  # This makes the first row (frame1) expandable
-root.grid_columnconfigure(0, weight=1)  # This makes the first column expandable
-root.grid_columnconfigure(1, weight=1)  # This makes the second column expandable
+root.grid_rowconfigure(0, weight=1)
+root.grid_columnconfigure(0, weight=1)
+root.grid_columnconfigure(1, weight=1)
 
-frame1.grid_rowconfigure(0, weight=1)  # Make the content inside frame1 expandable
-frame1.grid_columnconfigure(0, weight=1)  # Allow column in frame1 to expand
+frame1.grid_rowconfigure(0, weight=1)
+frame1.grid_columnconfigure(0, weight=1)
 
-frame2 = tk.Frame(root, bg='black')  # Frame for sent sondes
-frame2.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")  # Allow expansion with sticky="nsew"
+frame2 = tk.Frame(root, bg='black')
+frame2.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
 
-frame3 = tk.Frame(root, bg='black')  # Frame for config display
-frame3.grid(row=1, column=1, padx=10, pady=10, sticky="nsew")  # Allow expansion with sticky="nsew"
+frame3 = tk.Frame(root, bg='black')
+frame3.grid(row=1, column=1, padx=10, pady=10, sticky="nsew")
 
-# Allow the second row to be flexible in size
-root.grid_rowconfigure(1, weight=1)  # Allow row 1 (containing frame2 and frame3) to expand
+root.grid_rowconfigure(1, weight=1)
 
-
-# Display active sondes
 tk.Label(frame1, text="LIVE Sonde", font=("Arial", 14), fg='white', bg='black').pack()
-
-tree_sondes = ttk.Treeview(frame1, columns=("ID", "Type", "Date", "Latitude", "Longitude", "Course", "Speed", "Altitude", "Climb", "Launch", "Frequency", "Distance"), show="headings")
-tree_sondes.pack()
-
-# Define column headings for active sondes
 columns = ["ID", "Type", "Date", "Latitude", "Longitude", "Course", "Speed", "Altitude", "Climb", "Launch", "Frequency", "Distance"]
+tree_sondes = ttk.Treeview(frame1, columns=columns, show="headings")
+tree_sondes.pack()
 for col in columns:
     tree_sondes.heading(col, text=col)
-    tree_sondes.column(col, width=100, anchor='center')  # Default width, will auto-adjust later
+    tree_sondes.column(col, width=100, anchor='center')
 
-# Function to adjust column widths automatically based on content
 def adjust_column_widths(tree):
     for col in columns:
         tree.column(col, width=font.Font().measure(col))
@@ -70,27 +53,18 @@ def adjust_column_widths(tree):
             content = tree.item(row)['values'][columns.index(col)]
             tree.column(col, width=max(tree.column(col, option='width'), font.Font().measure(str(content))))
 
-# Display sent sondes
 tk.Label(frame2, text="Sent sonde E-mails", font=("Arial", 14), fg='white', bg='black').pack()
-
 tree_sent_sondes = ttk.Treeview(frame2, columns=("ID"), show="headings")
 tree_sent_sondes.pack()
-
-# Define column heading for sent sondes
 tree_sent_sondes.heading("ID", text="ID")
-tree_sent_sondes.column("ID", width=150, anchor='center')  # Default width, will auto-adjust
+tree_sent_sondes.column("ID", width=150, anchor='center')
 
-# Display settings from config.ini
 tk.Label(frame3, text="Settings (config.ini)", font=("Arial", 14), fg='white', bg='black').pack()
-
 config_display = tk.Text(frame3, width=50, height=10, bg='black', fg='white')
 config_display.pack()
 
-# Load config.ini
 config = configparser.ConfigParser()
 config.read('config.ini')
-
-# Load data from config.ini
 sender_email = config.get('settings', 'sender_email')
 receiver_email = config.get('settings', 'receiver_email')
 app_password = config.get('settings', 'app_password')
@@ -100,7 +74,12 @@ distance_from_home = float(config.get('settings', 'distance_from_home'))
 interval = int(config.get('settings', 'interval'))
 sonde_view_distance = float(config.get('settings', 'sonde_view_distance'))
 
-# Display config.ini data
+def str_to_bool(s):
+    return s.strip().lower() == 'true'
+
+send_email_enabled = str_to_bool(config.get('settings', 'send_email', fallback='True'))
+send_decoder_enabled = str_to_bool(config.get('settings', 'send_decoder', fallback='True'))
+
 config_data = (
     f"Sender Email: {sender_email}\n"
     f"Receiver Email: {receiver_email}\n"
@@ -109,43 +88,38 @@ config_data = (
     f"Distance from Home: {distance_from_home} km\n"
     f"Interval: {interval} s\n"
     f"Sonde View Distance: {sonde_view_distance} km\n"
+    f"Send Email: {send_email_enabled}\n"
+    f"Send to decoder: {send_decoder_enabled}\n"
 )
-
 config_display.insert(tk.END, config_data)
-config_display.configure(state='disabled')  # Prevent editing of config display
+config_display.configure(state='disabled')
 
-# Path to file of data if sent email for sonde before
 sent_sondes_file = 'sent_sondes.txt'
 
-# Haversine function for calculate between two positions
 def haversine(lat1, lon1, lat2, lon2):
-    R = 6371.0  # radius of the earth in km
-
+    R = 6371.0
     dlat = radians(lat2 - lat1)
     dlon = radians(lon2 - lon1)
-
     a = sin(dlat / 2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon / 2)**2
     c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    return R * c
 
-    distance = R * c
-    return distance
-
-# Function to send e-mail
 def send_email(sonde_id, typ, date_time, latitude, longitude, course, speed, altitude, climb, launch, frequency, distance):
     subject = f"Sonde {sonde_id} within {distance:.2f} km from Home position"
-    body = (f"Sonde ID: {sonde_id}\n"
-            f"Type: {typ}\n"
-            f"Date and Time: {date_time}\n"
-            f"Latitude: {latitude}\n"
-            f"Longitude: {longitude}\n"
-            f"Course: {course}\n"
-            f"Speed: {speed}\n"
-            f"Altitude: {altitude}\n"
-            f"Climb: {climb}\n"
-            f"Launch city: {launch}\n"
-            f"Frequency: {frequency}\n"
-            f"Distance from Home location: {distance:.2f} km\n")
-
+    body = (
+        f"Sonde ID: {sonde_id}\n"
+        f"Type: {typ}\n"
+        f"Date and Time: {date_time}\n"
+        f"Latitude: {latitude}\n"
+        f"Longitude: {longitude}\n"
+        f"Course: {course}\n"
+        f"Speed: {speed}\n"
+        f"Altitude: {altitude}\n"
+        f"Climb: {climb}\n"
+        f"Launch city: {launch}\n"
+        f"Frequency: {frequency}\n"
+        f"Distance from Home location: {distance:.2f} km\n"
+    )
     msg = MIMEText(body)
     msg['Subject'] = subject
     msg['From'] = sender_email
@@ -161,7 +135,6 @@ def send_email(sonde_id, typ, date_time, latitude, longitude, course, speed, alt
     except Exception as e:
         print(f"Error during sending email: {e}")
 
-# Function to check if an email was sent for the current sonde
 def email_sent(sonde_id):
     try:
         with open(sent_sondes_file, 'r') as file:
@@ -170,95 +143,97 @@ def email_sent(sonde_id):
     except FileNotFoundError:
         return False
 
-# Label to display the last update time
 last_update_label = tk.Label(root, text="Last update: N/A", font=("Arial", 12), fg='white', bg='black')
 last_update_label.grid(row=2, column=0, columnspan=2)
 
-# Label to display the status of data fetching
 status_label = tk.Label(root, text="Status: Waiting for the first data fetch...", font=("Arial", 12), fg='yellow', bg='black')
 status_label.grid(row=3, column=0, columnspan=2)
 
-# Function to load data from Radiosondy.info and send email
 def process_data():
-    url = r'https://radiosondy.info/dyn/get_flying.php'
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    }
+    url = 'https://radiosondy.info/dyn/get_flying.php'
+    headers = {'User-Agent': 'Mozilla/5.0'}
 
-    status_label.config(text="Status: Fetching data from Radiosondy.info...", fg='yellow')  # Update status to fetching
+    status_label.config(text="Status: Fetching data from Radiosondy.info...", fg='yellow')
 
     while True:
         try:
-            # Pokušaj pristupa stranici
             response = requests.get(url, headers=headers)
-
-            # Provjeri je li zahtjev uspješan
             if response.status_code == 200:
-                data = pd.read_html(response.content)[0].values.tolist()
-                print("Data successfully loaded from Radiosondy.info")
-                status_label.config(text="Status: Data fetched successfully!", fg='green')  # Update status to success
-                break  # Prekini petlju ako je stranica uspješno dohvaćena
+                soup = BeautifulSoup(response.content, 'html.parser')
+                table = soup.find('table')
+                rows = table.find_all('tr')[1:]  # skip header
+                data = []
+                for row in rows:
+                    cols = [td.get_text(strip=True) for td in row.find_all('td')]
+                    if len(cols) >= 11:
+                        data.append(cols)
+                status_label.config(text="Status: Data fetched successfully!", fg='green')
+                break
             else:
-                print(f"Error {response.status_code}: Error loading Radiosondy.info")
-                raise requests.RequestException  # Namjerno izazivanje greške za retry
+                raise Exception(f"Error {response.status_code}")
+        except Exception as e:
+            print(f"Error: {e}, retrying in 30s...")
+            status_label.config(text="Status: Error fetching data. Retrying in 30 seconds...", fg='red')
+            time.sleep(30)
 
-        except requests.RequestException as e:
-            print(f"Error loading Radiosondy.info: {e}. Retrying in 30 seconds...")
-            status_label.config(text=f"Status: Error fetching data. Retrying in 30 seconds...", fg='red')  # Update status to error
-            time.sleep(30)  # Čekaj 30 sekundi prije ponovnog pokušaja
-
-    tree_sondes.delete(*tree_sondes.get_children())  # Clear the treeview before inserting new data
+    tree_sondes.delete(*tree_sondes.get_children())
 
     for row in data:
-        sonde_id = row[0]
-        typ = row[1]
-        date_time = row[2]
-        latitude = row[3]
-        longitude = row[4]
-        course = row[5]
-        speed = row[6]
-        altitude = row[7]
-        climb = row[8]
-        launch = row[9]
-        frequency = row[10]
+        sonde_id, typ, date_time, lat, lon, course, speed, alt, climb, launch, freq = row[:11]
+        try:
+            lat = float(lat)
+            lon = float(lon)
+            distance = haversine(home_latitude, home_longitude, lat, lon)
+        except:
+            continue
 
-        # Calculate distance
-        distance = haversine(home_latitude, home_longitude, latitude, longitude)
-        print(f"Sonde   {sonde_id : <12} distance from Home location: {distance:.2f} km")
-
-        # Check if the sonde should be displayed
+        print(f"Sonde {sonde_id:<12} distance from Home: {distance:.2f} km")
         if distance < sonde_view_distance:
-            # Insert data into Treeview
-            tree_sondes.insert("", "end", values=(sonde_id, typ, date_time, latitude, longitude, course, speed, altitude, climb, launch, frequency, f"{distance:.2f} km"))
-
+            tree_sondes.insert("", "end", values=(
+                sonde_id, typ, date_time, lat, lon, course, speed, alt, climb, launch, freq, f"{distance:.2f} km"
+            ))
             if distance < distance_from_home and not email_sent(sonde_id):
-                send_email(sonde_id, typ, date_time, latitude, longitude, course, speed, altitude, climb, launch, frequency, distance)
+                if send_email_enabled:
+                    send_email(sonde_id, typ, date_time, lat, lon, course, speed, alt, climb, launch, freq, distance)
+                if send_decoder_enabled:
+                    clean_freq = freq.replace(" MHz", "")
+                    send_command(freq=clean_freq, tip=typ, restart=True)
 
     adjust_column_widths(tree_sondes)
 
-    # Update the list of sent sondes
-    tree_sent_sondes.delete(*tree_sent_sondes.get_children())  # Clear the treeview
+    tree_sent_sondes.delete(*tree_sent_sondes.get_children())
     try:
         with open(sent_sondes_file, 'r') as file:
-            sent_sondes = file.read().splitlines()
-            for sent_sonde in sent_sondes:
+            for sent_sonde in file.read().splitlines():
                 tree_sent_sondes.insert("", "end", values=(sent_sonde,))
     except FileNotFoundError:
         pass
 
-    # Update last update label with current time
     dt = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     last_update_label.config(text=f"Last update: {dt}")
 
-# Exit button
-exit_button = tk.Button(root, text="Exit", command=root.quit, bg='red', fg='white', font=("Arial", 26))
-exit_button.grid(row=5, column=0, columnspan=2, pady=10)  # Center the button below other frames
+def send_command(freq=None, tip=None, restart=False):
+    print(f"[DEBUG send_command] freq={freq!r}, tip={tip!r}, restart={restart}")
+    data = {}
+    if freq: data["freq"] = freq
+    if tip: data["type"] = tip
+    if restart: data["restart"] = True
+    try:
+        s = socket.socket()
+        s.connect(("127.0.0.1", 65432))
+        s.sendall(json.dumps(data).encode())
+        response = s.recv(1024).decode().strip()
+        print("[CLIENT] Response:", response)
+        s.close()
+    except Exception as e:
+        print("[CLIENT] Failed to send:", e)
 
-# Function to handle periodic updates
 def start_processing():
     process_data()
     root.after(interval * 1000, start_processing)
 
-# Run the data processing initially and then start the GUI loop
+exit_button = tk.Button(root, text="Exit", command=root.quit, bg='red', fg='white', font=("Arial", 26))
+exit_button.grid(row=5, column=0, columnspan=2, pady=10)
+
 start_processing()
 root.mainloop()
