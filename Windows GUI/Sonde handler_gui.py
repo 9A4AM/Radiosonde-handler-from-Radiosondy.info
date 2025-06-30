@@ -215,9 +215,18 @@ def process_data():
 def send_command(freq=None, tip=None, restart=False):
     print(f"[DEBUG send_command] freq={freq!r}, tip={tip!r}, restart={restart}")
     data = {}
-    if freq: data["freq"] = freq
-    if tip: data["type"] = tip
-    if restart: data["restart"] = True
+    if freq:
+        data["freq"] = freq
+    if tip:
+        # Normalize RS41 and DFM variants
+        if tip.startswith("RS41"):
+            data["type"] = "RS41"
+        elif tip in ("DFM09", "DFM17", "DFM06", "PS15"):
+            data["type"] = "DFM"
+        else:
+            data["type"] = tip
+    if restart:
+        data["restart"] = True
     try:
         s = socket.socket()
         s.connect(("127.0.0.1", 65432))
@@ -227,6 +236,7 @@ def send_command(freq=None, tip=None, restart=False):
         s.close()
     except Exception as e:
         print("[CLIENT] Failed to send:", e)
+
 
 def start_processing():
     process_data()
