@@ -3,3 +3,11 @@ A Python program for Windows and Linux OS for handling LIVE data from the Radios
 
 
 IMPORTANT: The Windows GUI now includes a new feature for controlling the Radiosonde Decoder and Tracker — but this applies only to the Windows GUI version, not to any other!
+
+LICENCE:
+This project uses the following third-party libraries:
+
+- requests (Apache 2.0 License)
+- beautifulsoup4 (MIT License)
+
+These libraries are installed via pip and are not bundled with this repository.
